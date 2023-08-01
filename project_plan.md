@@ -19,7 +19,7 @@ _Estimated hours of work: 8_
 **Week 4: July 23 - July 29**
 _Estimated hours of work: 6_
 - [x] Continue implementing initiation functionality
-- [ ] Begin implementing termination functionality
+- [x] Begin implementing termination functionality
     - [x] /drop
     - [x] /end
 - [x] Begin testing initial flow of creating a sprint session, joining, and dropping out / ending it
