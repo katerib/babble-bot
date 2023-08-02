@@ -30,15 +30,15 @@ _Estimated hours of work: 8_
     - [x] /timer
     - [x] /help
 - [x] Begin implementing calculated session management commands
-    [-] /update
+    [x] /update
 - [x] Continue thorough testing of session commands
 
 **Week 6: Aug 7 - Aug 13**
 _Estimated hours of work: 6_
 - [ ] Implement calculated session management commands
-    - [ ] /update
-    - [ ] must print after all updates sent, not after each update
-    - [ ] calculate custom ranges if initialized w/ no. other than 0
+    - [x] /update
+    - [x] must print after all updates sent, not after each update
+    - [x] calculate custom ranges if initialized w/ no. other than 0
 
 **Week 7: Aug 14 - Aug 20**
 _Estimated hours of work: 6_
