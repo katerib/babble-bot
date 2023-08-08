@@ -35,8 +35,8 @@ _Estimated hours of work: 8_
 
 **Week 6: Aug 7 - Aug 13**
 _Estimated hours of work: 6_
-- [ ] Implement calculated session management commands
-    - [x] /update
+- [x] Implement calculated session management commands
+    - [x] /progress
     - [x] must print after all updates sent, not after each update
     - [x] calculate custom ranges if initialized w/ no. other than 0
 
@@ -53,8 +53,8 @@ _Estimated hours of work: 6_
 - [x] /end
 - [x] /time
 - [x] /help
-- [-] /update 
+- [x] /progress 
 
-Extra commands not orignally planned to:
-- [x] /skip
+Extra commands:
+- [x] /skip -- for testing only
 - [x] /participants

@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix='/', intents=intents, help_command=None)
 
 participants = {}
 progress_submitted = {}
-babble_active = None
+babble_active = None           
 session_started = None
 start_in = 0
 duration = 30
@@ -30,12 +30,13 @@ DEFAULT_DURATION = 30
 
 @bot.event
 async def on_ready():
+    bot.add_command(hi)
     print(f'Logged in as {bot.user.name}')
 
 
 @bot.command()
-async def testing123(ctx):
-    await ctx.send("123123!!")
+async def hi(ctx):
+    await ctx.send('HELLO')
 
 
 @bot.command()
@@ -118,13 +119,14 @@ async def join(ctx, *initial_progress):
         pg 1
         pg1
         pg:1
+        1%
     """
     global babble_active, participants, progress_submitted
     if babble_active is not None:
         if ctx.author not in participants:
             participants[ctx.author] = 0
             progress_submitted[ctx.author] = False
-            initial_progress = " ".join(initial_progress)
+            initial_progress = " ".join(initial_progress) 
 
             if initial_progress:
                 if initial_progress.startswith('pg:'):
@@ -161,8 +163,8 @@ async def end(ctx):
     if babble_active is not None:
         babble_active, session_started = None, None
         start_sleep_task.cancel()
-        if session_sleep_task is not None: 
-            session_sleep_task.cancel() 
+        if session_sleep_task is not None:  
+            session_sleep_task.cancel()
         
         participants.clear()
         progress_submitted.clear()
@@ -199,7 +201,7 @@ async def timer(ctx):
     Will print the time left in the session if the session has started. Otherwise, will print the time left until the session starts.
     """
     global end_time, start_time, babble_active, session_started
-    if babble_active is not None and session_started is None:
+    if babble_active is not None and session_started is None:  
         time_left = start_time - datetime.datetime.now()
         minutes = time_left.seconds // 60
         seconds = time_left.seconds % 60
@@ -245,12 +247,10 @@ async def progress(ctx, *, progress: str):
                     page = progress
 
                 if page.isdigit():
-                    final_page_number = int(page)
-                    initial_page_number = participants[ctx.author]
-                    progress_made = final_page_number - initial_page_number
-                    participants[ctx.author] = progress_made
+                    page_number = int(page)
+                    participants[ctx.author] = page_number
                     progress_submitted[ctx.author] = True
-                    await ctx.send(f'{ctx.author.mention} has updated their progress to: page {progress_made}')
+                    await ctx.send(f'{ctx.author.mention} has updated their progress to: page {page_number}')
                 else:
                     await ctx.send(f'The progress provided is not a valid page number. Please try updating again.')
             else:
@@ -298,75 +298,47 @@ async def send_babble_start_message(ctx, start_in, duration):
     await ctx.send(f'**The reading challenge will start in {start_in} minute{start_plural} and last for {duration} minute{duration_plural}.** {join_msg}')
 
 
-async def leaderboard_timeout(ctx):
-    """
-    Waits for 4 minutes and then prints the leaderboard.
-    """
-    await asyncio.sleep(4 * 60)
-    await print_leaderboard(ctx)
-
-
-async def print_leaderboard(ctx):
-    """
-    Prints the leaderboard, and cancels the other leaderboard printing task.
-    """
-    global participants, progress_submitted, session_started
-
-    if session_started is not None:
-        scoreboard = sorted(participants.items(), key=lambda x: x[1], reverse=True)
-
-        if scoreboard:
-            scoreboard_message = "Scoreboard:\n"
-            for index, (participant, page_number) in enumerate(scoreboard, start=1):
-                scoreboard_message += f"{index}. {participant.mention}: {page_number} pages\n"
-            winner = scoreboard[0][0]
-            scoreboard_message += f"The winner is: {winner.mention} with {scoreboard[0][1]} pages!"
-            await ctx.send(scoreboard_message)
-        else:
-            await ctx.send("No participants submitted their progress update.")
-        return
-    else:
-        await ctx.send("There is no active reading challenge.")
-
-
 async def send_babble_end_message(ctx):
     """
     Used in babble command. Sends a message indicating the end of the reading challenge
-    and starts the tasks for printing the leaderboard.
+    and displays the scoreboard of participants' progress.
     """
     global participants, progress_submitted, session_started
 
     if session_started is not None:
-        await ctx.send("The reading challenge has ended!")
-        await asyncio.sleep(1)
-        await ctx.send("Participants, you have 4 minutes to submit your progress update using the `/progress` command.")
+        session_end = session_started + datetime.timedelta(minutes=5)
+        time_left = session_end - datetime.datetime.now()
+        minutes = time_left.seconds // 60
+        seconds = time_left.seconds % 60
 
-        num_participants = len(participants)
+        if participants:
+            await ctx.send("The reading challenge has ended!")
+            await asyncio.sleep(1)
+            await ctx.send("Participants, you have 3 minutes to submit your progress update using the `/progress` command.")
+            await asyncio.sleep(3 * 60) 
 
-        progress_tasks = [asyncio.create_task(wait_for_progress_update()) for _ in range(num_participants)]
-        timeout_task = asyncio.create_task(leaderboard_timeout(ctx))
+            while not all(progress_submitted.values()):
+                await asyncio.sleep(1)
 
-        done, pending = await asyncio.wait(progress_tasks + [timeout_task], return_when=asyncio.FIRST_COMPLETED)
+            scoreboard = sorted(participants.items(), key=lambda x: x[1], reverse=True)
 
-        if timeout_task in done:
-            for task in progress_tasks:
-                task.cancel()
+            if scoreboard:
+                scoreboard_message = "Scoreboard:\n"
+                for index, (participant, page_number) in enumerate(scoreboard, start=1):
+                    scoreboard_message += f"{index}. {participant.mention}: page {page_number}\n"
+                winner = scoreboard[0][0]
+                scoreboard_message += f"The winner is: {winner.mention} with page {scoreboard[0][1]}!"
+                await ctx.send(scoreboard_message)
+            else:
+                await ctx.send("No participants submitted their progress update.")
+
+            return
+
         else:
-            timeout_task.cancel()
-
-        await print_leaderboard(ctx)
-        session_started = None
+            await ctx.send("The reading challenge has ended. No participants joined the challenge.")
     else:
         await ctx.send("There is no active reading challenge.")
 
-async def wait_for_progress_update():
-    """
-    Helper function to wait for a participant to submit their progress update.
-    """
-    global progress_submitted
-    while not any(progress_submitted.values()):
-        await asyncio.sleep(1)
-    return
 
 async def send_babble_session_started_message(ctx):
     """
@@ -393,24 +365,5 @@ def get_page_number(participant):
         return int(page)
     return 0
 
-@bot.command()
-async def help(ctx):
-    commands = {
-        "/babble [start] [duration]": "Starts a reading challenge. By default, it starts in 1 minute and lasts for 30 minutes.",
-        "/skip": "Skips to the start or end of the reading challenge.",
-        "/join [initial_progress]": "Join the reading challenge. Optionally, specify your initial progress, e.g. /join pg: 1.",
-        "/end": "Ends the current reading challenge.",
-        "/drop": "Drops out of the current reading challenge.",
-        "/timer": "Shows the time left until the start or end of the reading challenge.",
-        "/participants": "Lists all the participants of the reading challenge.",
-        "/progress [pages]": "Update your progress in the reading challenge, e.g. /progress pg: 5.",
-        "/help": "Shows a list of available commands and their descriptions.",
-    }
 
-    help_text = ""
-    for command, description in commands.items():
-        help_text += f"`{command}`: {description}\n"
-
-    await ctx.send(help_text)
-    
 bot.run(os.getenv('DISCORD_TOKEN'))
