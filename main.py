@@ -31,6 +31,13 @@ DEFAULT_DURATION = 30
 @bot.event
 async def on_ready():
     bot.add_command(hi)
+    bot.add_command(babble)
+    bot.add_command(join)
+    bot.add_command(drop)
+    bot.add_command(skip)
+    bot.add_command(progress)
+    bot.add_command(help)
+
     print(f'Logged in as {bot.user.name}')
 
 
@@ -159,9 +166,10 @@ async def end(ctx):
     """
     Function to end the current session. Will clear the participants list and set babble_active and session_started to None.
     """
-    global babble_active, session_started, start_sleep_task, session_sleep_task, participants, progress_submitted
+    global babble_active, session_started, start_sleep_task, session_sleep_task, participants, progress_submitted, end_time, start_time
     if babble_active is not None:
         babble_active, session_started = None, None
+        end_time, start_time = None, None
         start_sleep_task.cancel()
         if session_sleep_task is not None:  
             session_sleep_task.cancel()
@@ -327,7 +335,7 @@ async def send_babble_end_message(ctx):
                 for index, (participant, page_number) in enumerate(scoreboard, start=1):
                     scoreboard_message += f"{index}. {participant.mention}: page {page_number}\n"
                 winner = scoreboard[0][0]
-                scoreboard_message += f"The winner is: {winner.mention} with page {scoreboard[0][1]}!"
+                scoreboard_message += f"The winner is: {winner.mention} with {scoreboard[0][1]} pages!"
                 await ctx.send(scoreboard_message)
             else:
                 await ctx.send("No participants submitted their progress update.")
