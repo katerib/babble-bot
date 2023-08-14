@@ -24,6 +24,9 @@ end_time = None
 session_sleep_task = None
 start_sleep_task = None
 
+session_status = "inactive"
+session_status_options = ["inactive", "countdown", "active", "awaiting_progress"]
+
 DEFAULT_START_IN = 1
 DEFAULT_DURATION = 30
 
@@ -34,16 +37,16 @@ async def on_ready():
     bot.add_command(babble)
     bot.add_command(join)
     bot.add_command(drop)
-    bot.add_command(skip)
     bot.add_command(progress)
     bot.add_command(help)
+    bot.add_command(participants)
 
     print(f'Logged in as {bot.user.name}')
 
 
 @bot.command()
 async def hi(ctx):
-    await ctx.send('HELLO')
+    await ctx.send('HELLO!')
 
 
 @bot.command()
@@ -79,28 +82,6 @@ async def babble(ctx, *, params: str = "1 30"):
         await ctx.send('There is already an active reading challenge.')
 
 
-@bot.command()
-async def skip(ctx):
-    global babble_active, start_sleep_task, session_sleep_task, session_started
-
-    if babble_active is not None:
-        if session_started is None:
-            if start_sleep_task and not start_sleep_task.done():
-                start_sleep_task.cancel()
-                await ctx.send('The reading challenge will start immediately!')
-                await start_session(ctx)
-            else:
-                await ctx.send('The reading challenge is already in progress. You cannot skip to the start again.')
-        else:
-            if session_sleep_task and not session_sleep_task.done():
-                session_sleep_task.cancel()
-                await send_babble_end_message(ctx)
-            else:
-                await ctx.send('The reading challenge has already ended. You cannot skip to the end again.')
-    else:
-        await ctx.send('There is no active reading challenge.')
-
-
 async def start_session(ctx):
     global session_sleep_task, session_started
     session_started = datetime.datetime.now()
@@ -115,26 +96,16 @@ async def start_session(ctx):
 async def join(ctx, *initial_progress):
     """
     Allows a user to join the current reading session. The user can supply an optional parameter 
-    to indicate their initial progress in the session. This function accepts an arbitrary number 
-    of string arguments (represented by *initial_progress), packs them into a tuple, 
-    and then combines them into a single string. This is done to handle the input of "pg: 1", 
-    where a space is included after the colon. Without this, Python would treat "pg:" and "1" 
-    as separate arguments, which would break the command.
-    
-    supports: /join __ where the blank is an optional parameter (using 1 for example):
-        pg: 1
-        pg 1
-        pg1
-        pg:1
-        1%
+    to indicate their initial progress in the session.
     """
     global babble_active, participants, progress_submitted
     if babble_active is not None:
         if ctx.author not in participants:
-            participants[ctx.author] = 0
+            participants[ctx.author] = {'initial': 0, 'current': 0}
             progress_submitted[ctx.author] = False
             initial_progress = " ".join(initial_progress) 
 
+            page_number = 0
             if initial_progress:
                 if initial_progress.startswith('pg:'):
                     page = initial_progress[3:].lstrip()
@@ -147,18 +118,19 @@ async def join(ctx, *initial_progress):
 
                 if page.isdigit():
                     page_number = int(page)
-                    participants[ctx.author] = page_number
-                    await ctx.send(f'{ctx.author.mention} has joined the reading challenge! Starting at: page {page_number}')
+                    participants[ctx.author] = {'initial': page_number, 'current': page_number}
                 else:
                     del participants[ctx.author]
                     del progress_submitted[ctx.author]
                     await ctx.send(f'The initial progress provided is not a valid page number. Please try joining again. Use /help for more information.')
-            else:
-                await ctx.send(f'{ctx.author.mention} has joined the reading challenge!')
+                    return
+
+            await ctx.send(f'{ctx.author.mention} has joined the reading challenge! Starting at: page {page_number}')
         else:
             await ctx.send(f'You\'re already participating in the reading challenge! If you\'d like to update your progress, use the /drop command and then rejoin the challenge.')
     else:
         await ctx.send('There is no active reading challenge.')
+
 
 
 @bot.command()
@@ -239,10 +211,6 @@ async def participants(ctx):
 
 @bot.command()
 async def progress(ctx, *, progress: str):
-    """
-    Allows a user to update their progress after the session has ended.
-    The progress should be provided in the format "pg: X" or "pg X", where X is the page number.
-    """
     global participants, progress_submitted, session_started
     if session_started is not None:
         if ctx.author in participants:
@@ -256,9 +224,9 @@ async def progress(ctx, *, progress: str):
 
                 if page.isdigit():
                     page_number = int(page)
-                    participants[ctx.author] = page_number
+                    participants[ctx.author]['current'] = page_number
                     progress_submitted[ctx.author] = True
-                    await ctx.send(f'{ctx.author.mention} has updated their progress to: page {page_number}')
+                    await ctx.send(f'{ctx.author.mention} has updated their progress to: page {participants[ctx.author]["current"]}')
                 else:
                     await ctx.send(f'The progress provided is not a valid page number. Please try updating again.')
             else:
@@ -309,43 +277,36 @@ async def send_babble_start_message(ctx, start_in, duration):
 async def send_babble_end_message(ctx):
     """
     Used in babble command. Sends a message indicating the end of the reading challenge
-    and displays the scoreboard of participants' progress.
+    and waits for participants to update their progress.
     """
     global participants, progress_submitted, session_started
 
     if session_started is not None:
-        session_end = session_started + datetime.timedelta(minutes=5)
-        time_left = session_end - datetime.datetime.now()
-        minutes = time_left.seconds // 60
-        seconds = time_left.seconds % 60
-
-        if participants:
-            await ctx.send("The reading challenge has ended!")
-            await asyncio.sleep(1)
-            await ctx.send("Participants, you have 3 minutes to submit your progress update using the `/progress` command.")
-            await asyncio.sleep(3 * 60) 
-
-            while not all(progress_submitted.values()):
-                await asyncio.sleep(1)
-
-            scoreboard = sorted(participants.items(), key=lambda x: x[1], reverse=True)
-
-            if scoreboard:
-                scoreboard_message = "Scoreboard:\n"
-                for index, (participant, page_number) in enumerate(scoreboard, start=1):
-                    scoreboard_message += f"{index}. {participant.mention}: page {page_number}\n"
-                winner = scoreboard[0][0]
-                scoreboard_message += f"The winner is: {winner.mention} with {scoreboard[0][1]} pages!"
-                await ctx.send(scoreboard_message)
-            else:
-                await ctx.send("No participants submitted their progress update.")
-
-            return
-
+        await ctx.send("The reading challenge has ended!")
+        await ctx.send("Participants, you have 3 minutes to submit your progress update using the `/progress` command.")
+        
+        end_time = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        while datetime.datetime.now() < end_time and not all(progress_submitted.values()):
+            await asyncio.sleep(3)
+        
+        scoreboard = sorted(participants.items(), key=lambda x: x[1]['current'] - x[1]['initial'], reverse=True)
+        
+        if scoreboard:
+            scoreboard_message = "Scoreboard:\n"
+            for index, (participant, progress) in enumerate(scoreboard, start=1):
+                difference = progress['current'] - progress['initial']
+                scoreboard_message += f"{index}. {participant.mention} {difference} pages\n"
+            winner = scoreboard[0][0]
+            winner_difference = scoreboard[0][1]['current'] - scoreboard[0][1]['initial']
+            scoreboard_message += f"The winner is: {winner.mention} with {winner_difference} pages!"
+            await ctx.send(scoreboard_message)
         else:
-            await ctx.send("The reading challenge has ended. No participants joined the challenge.")
+            await ctx.send("No participants submitted their progress update.")
+        
+        return
     else:
         await ctx.send("There is no active reading challenge.")
+
 
 
 async def send_babble_session_started_message(ctx):
