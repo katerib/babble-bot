@@ -370,4 +370,23 @@ def get_page_number(participant):
     return 0
 
 
+@bot.command()
+async def help(ctx):
+    commands = {
+        "/babble [start] [duration]": "Starts a reading challenge. By default, it starts in 1 minute and lasts for 30 minutes.",
+        "/join [initial_progress]": "Join the reading challenge. Optionally, specify your initial progress, e.g. /join pg: 1.",
+        "/end": "Ends the current reading challenge.",
+        "/drop": "Drops out of the current reading challenge.",
+        "/timer": "Shows the time left until the start or end of the reading challenge.",
+        "/participants": "Lists all the participants of the reading challenge.",
+        "/progress [pages]": "Update your progress in the reading challenge, e.g. /progress pg: 5.",
+        "/help": "Shows a list of available commands and their descriptions.",
+    }
+
+    help_text = ""
+    for command, description in commands.items():
+        help_text += f"`{command}`: {description}\n"
+
+    await ctx.send(help_text)
+
 bot.run(os.getenv('DISCORD_TOKEN'))
