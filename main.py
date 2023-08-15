@@ -1,3 +1,33 @@
+"""
+BABBLE BOT
+
+Python script for a Discord bot that facilitates reading challenges. Bot can be added to any Discord server and interacted with via commands.
+
+Commands include: /babble, /join, /drop, /progress, /participants, /timer, /end, /help. Commands must be preceded by a forward slash.
+
+/babble: Starts a reading challenge.
+    The user can specify the start time and duration of the challenge.
+    If no parameters are provided, the default start time is 1 minute and the default duration is 30 minutes.
+/join: Allows a user to join the current reading challenge.
+    The user can supply an optional parameter to indicate their initial progress in the session.
+    If no parameter is provided, the user will start at page 0.
+/drop: Allows a user to drop out of the current reading challenge.
+    The user can supply an optional parameter to drop out quietly, which will not send a message to the channel when they drop out.
+/progress: Allows a user to update their progress in the current session.
+/participants: Lists all the participants in the reading challenge.
+/timer: Checks the time left in the current phase, which can be:
+    - the time left until the session starts
+    - the time left in the session
+    - the time left to submit progress after a reading challenge ends
+/end: Ends the current session.
+/help: Lists all the commands and their usage.
+
+Hosted on Disboard for 24/7 uptime.
+
+Last updated: August 14 2023
+
+"""
+
 import os
 import asyncio
 import discord
@@ -32,20 +62,13 @@ DEFAULT_DURATION = 30
 
 @bot.event
 async def on_ready():
-    bot.add_command(hi)
     bot.add_command(babble)
     bot.add_command(join)
     bot.add_command(drop)
     bot.add_command(progress)
     bot.add_command(help)
     bot.add_command(participants)
-
     print(f'Logged in as {bot.user.name}')
-
-
-@bot.command()
-async def hi(ctx):
-    await ctx.send('HELLO !')
 
 
 @bot.command()
@@ -215,6 +238,9 @@ async def participants(ctx):
 
 @bot.command()
 async def progress(ctx, *, progress: str):
+    """
+    Command for the user to update their progress in the current session. 
+    """
     global all_participants, progress_submitted, session_started
     if session_started is not None:
         if ctx.author in all_participants:
@@ -281,6 +307,10 @@ async def send_babble_start_message(ctx, start_in, duration):
 
 
 async def send_babble_end_message(ctx):
+    """
+    Method used in babble command. Sends a message indicating the end of the reading challenge. Users have 3 minutes to submit their progress.
+    If all participants do not submit their progress within 3 minutes, the scoreboard will be printed with all participants who submitted their progress.
+    """
     global all_participants, progress_submitted, session_started, submit_end_time, start_sleep_task, session_sleep_task, babble_active
 
     if session_started is not None:
