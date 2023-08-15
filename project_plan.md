@@ -42,9 +42,9 @@ _Estimated hours of work: 6_
 
 **Week 7: Aug 14 - Aug 20**
 _Estimated hours of work: 6_
-- [ ] Test and document entire set of commands
-- [ ] Bug hunt
-- [ ] Prepare presentation / report
+- [x] Test and document entire set of commands
+- [x] Bug hunt
+- [x] Prepare presentation / report
 
 ## Functionality List
 - [x] /babble
