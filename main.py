@@ -38,7 +38,7 @@ async def on_ready():
     bot.add_command(drop)
     bot.add_command(progress)
     bot.add_command(help)
-    bot.add_command(all_participants)
+    bot.add_command(participants)
 
     print(f'Logged in as {bot.user.name}')
 
